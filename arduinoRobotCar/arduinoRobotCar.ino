@@ -10,6 +10,13 @@ int const white = 0;
 int const grey = 1;
 int const black = 2;
 
+int led1 = 13;
+int led2 = 12;
+int led3 = 8;
+int led4 = 7;
+int led5 = 2;
+
+
 
 int TIMER =  100; // init to 1 second
 int forwardPinValue = 0;
@@ -48,6 +55,7 @@ int blackA[history_size];
 int lastColor;
 int currentColor;
 boolean lastGreyWhite = false;
+boolean forward = true;
 
 //-------------------------------------------------------------------------------------------------
 
@@ -59,6 +67,9 @@ void setup() {
     greyA[i] = initial_mean_grey;
     blackA[i] = initial_mean_black;
   }
+
+  pinMode(led1, OUTPUT);
+  digitalWrite(led1, HIGH);
 
   Serial.begin(9600);
   pinMode(forwardPin, INPUT);
@@ -83,16 +94,16 @@ void setup() {
   digitalWrite(enablePinMotor2, HIGH); 
 
   //init so we start with both sensor in the same strip
-  readSensors();
+  /*readSensors();
   while(colorOfStrip(leftPinValue) != colorOfStrip(rightPinValue)){
-    Forward();
+    //forward();
     delay(50);
-    Stop();
-  }
+    //Stop();
+  }*/
   //init state
-  lastColor = colorOfStrip(leftPinValue);
+  /*lastColor = colorOfStrip(leftPinValue);
   currentColor = colorOfStrip(leftPinValue);
-
+  */
   Serial.println("Car initialized, ready to go!");
 }
 
@@ -100,10 +111,12 @@ void setup() {
 //-----------------------------------main loop-----------------------------------------------------------
 void loop() {
 
-	// retrieve values of lightness
-	readSensors();
+  // retrieve values of lightness
+  readSensors();
+  printLightValues(leftPinValue, rightPinValue, colorOfStrip(leftPinValue), colorOfStrip(rightPinValue));
+
   //check if one sensor is already in another strip -> we might drive schräg
-  if(colorOfStrip(leftPinValue) != colorOfStrip(rightPinValue)){
+  /*if(colorOfStrip(leftPinValue) != colorOfStrip(rightPinValue)){
     alterDirection();
   }
   //else??
@@ -112,13 +125,13 @@ void loop() {
   lastColor = currentColor;
   currentColor = colorOfStrip(leftPinValue);
 
-	driveToBrightness();
-	
-	// print values
-	printLightValues(forwardPinValue, backwardPinValue, leftPinValue, rightPinValue);    
+  driveToBrightness();
+  
+  // print values
+  printLightValues(forwardPinValue, backwardPinValue, leftPinValue, rightPinValue);    
 
-	delay(TIMER); 
-	Stop();
+  delay(TIMER); 
+  Stop();*/
 }
 
 //
@@ -192,19 +205,19 @@ void readSensors()
 //----------------------------------determine direction-----------------------------------------------
 void driveToBrightness()
 {
-	 if(lastColor = currentColor){
+	 if(lastColor == currentColor){
     //color is the same we are in the same strip we drive straight
     Forward();
    //stop
    }
    else{
-    if((lastColor = black && currentColor = white) || (lastColor = grey && currentColor = black) || (lastColor = white && currentColor = grey)){
+    if((lastColor == black && currentColor == white) || (lastColor == grey && currentColor == black) || (lastColor == white && currentColor == grey)){
       //umdrehen
     }
     else{
-      if(lastColor = grey && currentColor = white){
-        lastGreyWhite
-        }  
+      if(lastColor == grey && currentColor == white){
+        /*lastGreyWhite
+        */} 
     }
    }
   
