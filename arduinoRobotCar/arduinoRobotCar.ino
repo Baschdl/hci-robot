@@ -44,8 +44,8 @@ int hbridePin = 11;
 /*parameters for drivin algo*/
 int const history_size = 30;
 int initial_mean_white = 0;
-int initial_mean_grey = 128;
-int initial_mean_black = 255;
+int initial_mean_grey = 500;
+int initial_mean_black = 1000;
 
 int whiteA[history_size];
 int greyA[history_size];
