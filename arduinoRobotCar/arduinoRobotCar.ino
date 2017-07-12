@@ -16,8 +16,6 @@ int led3 = 8;
 int led4 = 7;
 int led5 = 2;
 
-
-
 int TIMER =  100; // init to 1 second
 int forwardPinValue = 0;
 int backwardPinValue = 0;
@@ -43,20 +41,25 @@ int hbridePin = 11;
 
 /*parameters for drivin algo*/
 int const history_size = 30;
-int initial_mean_white = 0;
+int initial_mean_white = 250;
 int initial_mean_grey = 500;
 int initial_mean_black = 1000;
 
 int whiteA[history_size];
+int whiteArrayCounter = 0;
+
 int greyA[history_size];
+int greyArrayCounter = 0;
+
 int blackA[history_size];
+int blackArrayCounter = 0;
 
 //state
 int lastColor;
 int currentColor;
 boolean lastGreyWhite = false;
 boolean forward = true;
-
+int correctDirectionCount = 0;
 //-------------------------------------------------------------------------------------------------
 
 //------------------------------------------initialization-----------------------------------------
@@ -70,10 +73,12 @@ void setup() {
 
   pinMode(led1, OUTPUT);
   digitalWrite(led1, HIGH);
+  delay(1000);
+  digitalWrite(led1, LOW);
 
   Serial.begin(9600);
-  pinMode(forwardPin, INPUT);
-  pinMode(backwardPin, INPUT);
+  /*pinMode(forwardPin, INPUT);
+  pinMode(backwardPin, INPUT);*/
   pinMode(leftPin, INPUT);
   pinMode(rightPin, INPUT);
 
@@ -101,104 +106,152 @@ void setup() {
     //Stop();
   }*/
   //init state
-  /*lastColor = colorOfStrip(leftPinValue);
+  lastColor = colorOfStrip(leftPinValue);
   currentColor = colorOfStrip(leftPinValue);
-  */
+  
   Serial.println("Car initialized, ready to go!");
 }
 
 //
 //-----------------------------------main loop-----------------------------------------------------------
 void loop() {
-
   // retrieve values of lightness
   readSensors();
+  delay(1000);
   printLightValues(leftPinValue, rightPinValue, colorOfStrip(leftPinValue), colorOfStrip(rightPinValue));
-
   //check if one sensor is already in another strip -> we might drive schräg
-  /*if(colorOfStrip(leftPinValue) != colorOfStrip(rightPinValue)){
-    alterDirection();
+  if(!checkDirection()){
+    correctDirectionCount = 0;
+    //actualisation of state
+    stateUpdate(colorOfStrip(leftPinValue)); 
+    driveToBrightness();
+    delay(100);
+    Stop();
   }
-  //else??
-
-  //actualisation of state
-  lastColor = currentColor;
-  currentColor = colorOfStrip(leftPinValue);
-
-  driveToBrightness();
-  
-  // print values
-  printLightValues(forwardPinValue, backwardPinValue, leftPinValue, rightPinValue);    
-
-  delay(TIMER); 
-  Stop();*/
 }
 
-//
+void stateUpdate(int colorOfCurrentStrip){
+  lastColor = currentColor;
+  currentColor = colorOfCurrentStrip;
+}
 
 //gives back the color to the given sensorvalue
 int colorOfStrip(int sensorvalue){
-  int distWhite = abs (sensorvalue - mean(white));
-  int distGrey = abs (sensorvalue - mean(grey));
-  int distBlack = abs (sensorvalue - mean(black));
-  //refactor
+  int distWhite = abs(sensorvalue - mean(whiteA));
+  int distGrey = abs(sensorvalue - mean(greyA));
+  int distBlack = abs(sensorvalue - mean(blackA));
   if(distWhite < distGrey){
-    if(distWhite < distBlack){
-      return white;
-    }
-    else{
-      return black;
-    }
+    pushArrayValue(whiteA, sensorvalue, &whiteArrayCounter);
+    return white;
   }
   else{
     if(distGrey < distBlack){
+      pushArrayValue(greyA, sensorvalue, &greyArrayCounter);
       return grey;
     }
     else{
+      pushArrayValue(blackA, sensorvalue, &blackArrayCounter);
       return black;
     }
   }
   
 }
 //give back mean of color history array
-int mean(int color){
-  //TODO pu new value in
+int mean(int* colorArray){
   int sum = 0;
-  switch(color) {
-    case white:
-      for(int i = 0; i < history_size; i++){
-        sum += whiteA[i];
-      }
-      return sum/history_size;
-      break;
-    case grey:
-      for(int i = 0; i < history_size; i++){
-        sum += greyA[i];
-      }
-      return sum/history_size;
-      break;
-    case black:
-      for(int i = 0; i < history_size; i++){
-        sum += blackA[i];
-      }
-      return sum/history_size;
-      break;
-    }
+  for(int i = 0; i < history_size; i++){
+    sum += colorArray[i];
+  }
+  return sum/history_size;
 }
 
-//alter Direction
-void alterDirection(){
-//TODO implement
+void pushArrayValue(int* colorArray, int value, int* counter){
+  colorArray[*counter] = value;
+  incCounter(counter);
+}
 
+void incCounter(int* counter){
+  if(*counter < (history_size - 1)){
+    *counter++;
+  }
+  else{
+    *counter = 0;
+  }
+}
+
+
+
+boolean checkDirection(){
+  if(correctDirectionCount > 200){
+    possibleErrorPrevention();
+  }
+  int leftColor = colorOfStrip(leftPinValue);
+  int rightColor = colorOfStrip(rightPinValue);
+  if(leftColor != rightColor){
+    correctDirectionCount++;
+    correctDirection(leftColor, rightColor);
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+
+void possibleErrorPrevention(){
+  Serial.println("Error, now driving around like crazy");
+  int leftColor = colorOfStrip(leftPinValue);
+  int rightColor = colorOfStrip(rightPinValue);
+  while(leftColor != rightColor){
+    Forward();
+    delay(100);
+  }
+}
+
+void correctDirection(int leftColor, int rightColor){
+  if(currentColor != leftColor){
+    if(forward){
+      RotateRight();
+      delay(20);
+      Forward();
+      delay(10);
+      Stop();
+    }
+    else{
+      RotateLeft();
+      delay(20);
+      Backward();
+      delay(10);
+      Stop();
+    }
+      
+  }
+  else{
+    if(forward){
+      RotateLeft();
+      delay(20);
+      Backward();
+      delay(10);
+      Stop();
+    }
+    else{
+      RotateRight();
+      delay(20);
+      Forward();
+      delay(10);
+      Stop();
+    }
+      
+  }
 }
 
 //----------------------------------readSensors-------------------------------------------------------
 void readSensors()
 {
-	forwardPinValue = analogRead(forwardPin);
-	backwardPinValue = analogRead(backwardPin);
+	/*forwardPinValue = analogRead(forwardPin);
+	backwardPinValue = analogRead(backwardPin);*/
 	leftPinValue = analogRead(leftPin);
 	rightPinValue = analogRead(rightPin);
+  Serial.print("read sensors");
 }
 
 //
@@ -207,48 +260,49 @@ void driveToBrightness()
 {
 	 if(lastColor == currentColor){
     //color is the same we are in the same strip we drive straight
-    Forward();
-   //stop
+    driveForward();
    }
    else{
     if((lastColor == black && currentColor == white) || (lastColor == grey && currentColor == black) || (lastColor == white && currentColor == grey)){
-      //umdrehen
+      if(lastColor == white && currentColor == grey && lastGreyWhite){
+        Serial.print("whuuup whuup we won");
+        Stop();
+      }else{
+        changeDirection();
+        driveForward(); 
+      }
     }
     else{
       if(lastColor == grey && currentColor == white){
-        /*lastGreyWhite
-        */} 
+        lastGreyWhite = true;
+      }
+      driveForward(); 
     }
    }
-  
-  
-  
- 
-	
-	
-	//
-	// 1.) use the values read from the light sensors to determine the direction
-	//
-	
-	
-	
-	
-	//
-	// 2.) drive in this direction
-	//
-	
-	
-	
 }
 
+void changeDirection(){
+  forward = !forward;
+}
+void driveForward(){
+  if(forward){
+    Forward();
+  }
+  else{
+    Backward();
+  }
+}
 //
 //----------------------------------debug functions --------------------------------------------------
 void printLightValues(int forward, int backward, int left, int right)
 {
-    Serial.print("light sensors: (");    
+    Serial.println("light sensors: (");    
     Serial.print(forward);
+    Serial.print(" ! ");  
     Serial.print(backward);
+    Serial.print(" ! "); 
     Serial.print(left);
+    Serial.print(" ! "); 
     Serial.println(right);
 }
 
@@ -258,37 +312,37 @@ void printLightValues(int forward, int backward, int left, int right)
 void Forward()
 {
   Serial.println("move forward");
-  digitalWrite(motor1PinA, HIGH);
+  /*digitalWrite(motor1PinA, HIGH);
   digitalWrite(motor1PinB, LOW);
   digitalWrite(motor2PinA, HIGH);
-  digitalWrite(motor2PinB, LOW);
+  digitalWrite(motor2PinB, LOW);*/
 }
 
 void Backward() // inverse voltage of both motors
 {
   Serial.println("move backward");
-  digitalWrite(motor1PinA, LOW);
+  /*digitalWrite(motor1PinA, LOW);
   digitalWrite(motor1PinB, HIGH);
   digitalWrite(motor2PinA, LOW);
-  digitalWrite(motor2PinB, HIGH);
+  digitalWrite(motor2PinB, HIGH);*/
 }
 
 void RotateLeft() // inverse voltage of only one motor
 {
   Serial.println("rotate left");
-  digitalWrite(motor1PinA, LOW);
+  /*digitalWrite(motor1PinA, LOW);
   digitalWrite(motor1PinB, HIGH);
   digitalWrite(motor2PinA, HIGH);
-  digitalWrite(motor2PinB, LOW);
+  digitalWrite(motor2PinB, LOW);*/
 }
 
 void RotateRight() // inverse voltage of only one motor
 {
   Serial.println("rotate right");
-  digitalWrite(motor1PinA, HIGH);
+  /*digitalWrite(motor1PinA, HIGH);
   digitalWrite(motor1PinB, LOW);
   digitalWrite(motor2PinA, LOW);
-  digitalWrite(motor2PinB, HIGH);
+  digitalWrite(motor2PinB, HIGH);*/
 }
 
 void Stop() 
