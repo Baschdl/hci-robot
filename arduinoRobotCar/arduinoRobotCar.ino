@@ -10,8 +10,11 @@ int const white = 0;
 int const grey = 1;
 int const black = 2;
 
+//motor speed maximal 255
+int const motorSpeed = 127;
+
 int led1 = 13;
-int led2 = 12;
+int led2 = 11;
 int led3 = 8;
 int led4 = 7;
 int led5 = 2;
@@ -30,8 +33,8 @@ int rightPin = A3;
 
 /* digital pins for the Hbridge controlling the 2 motors */
 int motor1PinA = 3;
-int motor1PinB = 4;
-int enablePinMotor1 = 9; 
+int motor1PinB = 9;
+int enablePinMotor1 = 4; 
 
 int motor2PinA = 5;
 int motor2PinB = 6;
@@ -72,6 +75,7 @@ void setup() {
     blackA[i] = initial_mean_black;
   }
 
+  //init leds
   pinMode(led1, OUTPUT);
   pinMode(led2, OUTPUT);
   pinMode(led3, OUTPUT);
@@ -81,18 +85,14 @@ void setup() {
   delay(1000);
   digitalWrite(led1, LOW);
 
+  //init sensors
   Serial.begin(9600);
   /*pinMode(forwardPin, INPUT);
   pinMode(backwardPin, INPUT);*/
   pinMode(leftPin, INPUT);
   pinMode(rightPin, INPUT);
-
-  // if necessary enable the pull up resistor
-  //digitalWrite(forwardPin, HIGH); 
-  //digitalWrite(backwardPin, HIGH); 
-  //digitalWrite(leftPin, HIGH);
-  //digitalWrite(leftPin, HIGH);  
-   
+  
+  // init motor pins 
   pinMode(motor1PinA, OUTPUT);
   pinMode(motor1PinB, OUTPUT);
   pinMode(motor2PinA, OUTPUT);
@@ -120,36 +120,30 @@ void setup() {
 //
 //-----------------------------------main loop-----------------------------------------------------------
 void loop() {
+  
   // retrieve values of lightness
   readSensors();
   delay(1000);
+  
+  //print for debugging
   printLightValues(leftPinValue, rightPinValue, colorOfStrip(leftPinValue), colorOfStrip(rightPinValue));
-  //check if one sensor is already in another strip -> we might drive schräg
-  if(!checkDirection()){
+
+  
+  //check if one sensor is already in another strip -> rotate so both are in the same
+  if(!isCrossingStripDiagonal()){
     correctDirectionCount = 0;
+    //we are with both sensos in same strip
+    
     //actualisation of state
     stateUpdate(colorOfStrip(leftPinValue)); 
+
+    //now we check where we need to drive to
     driveToBrightness();
     delay(100);
-    Stop();
   }
 
   if(won){
-    digitalWrite(led1, HIGH);
-    delay(50);
-    digitalWrite(led1, LOW);
-    digitalWrite(led2, HIGH);
-    delay(50);
-    digitalWrite(led2, LOW);
-    digitalWrite(led3, HIGH);
-    delay(50);
-    digitalWrite(led3, LOW);
-    digitalWrite(led4, HIGH);
-    delay(50);
-    digitalWrite(led4, LOW);
-    digitalWrite(led5, HIGH);
-    delay(50);
-    digitalWrite(led5, LOW);
+    whuuup();
   }
 }
 
@@ -189,7 +183,7 @@ void driveToBrightness()
 }
 
 
-//gives back the color to the given sensorvalue
+//--------gives back the color to the given sensorvalue
 int colorOfStrip(int sensorvalue){
   int distWhite = abs(sensorvalue - mean(whiteA));
   int distGrey = abs(sensorvalue - mean(greyA));
@@ -210,7 +204,8 @@ int colorOfStrip(int sensorvalue){
   }
   
 }
-//give back mean of color history array
+
+//--------- give back mean of color history array
 int mean(int* colorArray){
   int sum = 0;
   for(int i = 0; i < history_size; i++){
@@ -234,11 +229,12 @@ void incCounter(int* counter){
 }
 
 
-
-boolean checkDirection(){
+//------ check if one sensor is already in another strip
+boolean isCrossingStripDiagonal(){
   if(correctDirectionCount > 200){
     possibleErrorPrevention();
   }
+  
   int leftColor = colorOfStrip(leftPinValue);
   int rightColor = colorOfStrip(rightPinValue);
   if(leftColor != rightColor){
@@ -251,8 +247,7 @@ boolean checkDirection(){
   }
 }
 
-//TODO
-
+//TODO intelligent Error Handling
 void possibleErrorPrevention(){
   Serial.println("Error, now driving around like crazy");
   int leftColor = colorOfStrip(leftPinValue);
@@ -356,12 +351,31 @@ void printLightValues(int forward, int backward, int left, int right)
 
 //
 //----------------------------------motor functions --------------------------------------------------
+/*
+//pwm funktions
+void Forward(int value){
+  Serial.println("move forward");
+  analogWrite(motor1PinA, value);
+  analogWrite(motor1PinB, LOW);
+  analogWrite(motor2PinA, value);
+  analogWrite(motor2PinB, LOW);
+}
+
+void Backward(int value)
+{
+  Serial.println("move backward");
+  analogWrite(motor1PinA, LOW);
+  analogWrite(motor1PinB, value);
+  analogWrite(motor2PinA, LOW);
+  analogWrite(motor2PinB, value);
+}*/
+// normal functions
 void Forward()
 {
   Serial.println("move forward");
-  digitalWrite(motor1PinA, HIGH);
+  analogWrite(motor1PinA, motorSpeed);
   digitalWrite(motor1PinB, LOW);
-  digitalWrite(motor2PinA, HIGH);
+  analogWrite(motor2PinA, motorSpeed);
   digitalWrite(motor2PinB, LOW);
 }
 
@@ -369,27 +383,27 @@ void Backward() // inverse voltage of both motors
 {
   Serial.println("move backward");
   digitalWrite(motor1PinA, LOW);
-  digitalWrite(motor1PinB, HIGH);
+  analogWrite(motor1PinB, motorSpeed);
   digitalWrite(motor2PinA, LOW);
-  digitalWrite(motor2PinB, HIGH);
+  analogWrite(motor2PinB, motorSpeed);
 }
 
 void RotateLeft() // inverse voltage of only one motor
 {
   Serial.println("rotate left");
   digitalWrite(motor1PinA, LOW);
-  digitalWrite(motor1PinB, HIGH);
-  digitalWrite(motor2PinA, HIGH);
+  analogWrite(motor1PinB, HIGH);
+  analogWrite(motor2PinA, HIGH);
   digitalWrite(motor2PinB, LOW);
 }
 
 void RotateRight() // inverse voltage of only one motor
 {
   Serial.println("rotate right");
-  digitalWrite(motor1PinA, HIGH);
+  analogWrite(motor1PinA, motorSpeed);
   digitalWrite(motor1PinB, LOW);
   digitalWrite(motor2PinA, LOW);
-  digitalWrite(motor2PinB, HIGH);
+  analogWrite(motor2PinB, motorSpeed);
 }
 
 void Stop() 
@@ -400,3 +414,22 @@ void Stop()
   digitalWrite(motor2PinA, LOW);
   digitalWrite(motor2PinB, LOW);
 }
+
+void whuuup(){
+  //crazy firework
+    digitalWrite(led1, HIGH);
+    delay(50);
+    digitalWrite(led1, LOW);
+    digitalWrite(led2, HIGH);
+    delay(50);
+    digitalWrite(led2, LOW);
+    digitalWrite(led3, HIGH);
+    delay(50);
+    digitalWrite(led3, LOW);
+    digitalWrite(led4, HIGH);
+    delay(50);
+    digitalWrite(led4, LOW);
+    digitalWrite(led5, HIGH);
+    delay(50);
+    digitalWrite(led5, LOW);
+  }
